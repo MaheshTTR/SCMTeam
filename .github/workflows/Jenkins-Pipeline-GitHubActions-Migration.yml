@@ -1,0 +1,64 @@
+name: Jenkins to GitHub Actions Migration
+
+on:
+  workflow_dispatch:
+
+jobs:
+  migrate-jenkins-pipeline:
+    runs-on: ubuntu-22.04
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v2
+
+      - name: Set up Docker environment
+        uses: docker-practice/actions-setup-docker@master
+
+      - name: Verify Docker version
+        run: docker version
+        
+
+      - name: Install GitHub CLI
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y gh     
+
+      - name: Set up GitHub CLI
+        run: |
+          gh extension install github/gh-actions-importer
+        env:
+          GH_TOKEN: ${{ secrets.SCM_GITTOKEN }}
+          
+      # Verify the extension is installed
+      - name: Verify installation
+        run: gh actions-importer version
+        env:
+          GH_TOKEN: ${{ secrets.SCM_GITTOKEN }}
+
+       # Configure credentials for GitHub Actions Importer
+      - name: Configure Actions Importer
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_PAT }}
+          JENKINS_TOKEN: 119a241511af02f0c407453bac9e490e1e
+          JENKINS_USER: 6019404
+          JENKINS_URL: http://scm-jenkins.int.thomson.com/jenkins
+        run: |
+          echo "Configuring GitHub Actions Importer..."
+          gh actions-importer configure --ci-provider Jenkins \
+            --github-token $GH_TOKEN \
+            --github-url https://github.com \
+            --jenkins-token $JENKINS_TOKEN \
+            --jenkins-user $JENKINS_USER \
+            --jenkins-url $JENKINS_URL
+          
+      # - name: Commit generated workflow
+      #   run: |
+      #     git config --global user.name "GitHub Actions"
+      #     git config --global user.email "actions@github.com"
+      #     git add .github/workflows
+      #     git commit -m "Add generated GitHub Actions workflow"
+      #     git push
+

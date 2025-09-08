@@ -1,0 +1,84 @@
+name: 'SCM-Remote-Command'
+
+on:
+  workflow_call:
+    inputs:
+      SCMserver:
+        description: 'The SCM server to execute the command on'
+        required: true
+        type: string
+      SCMcommand:
+        description: 'The SSH command to execute on the remote server'
+        required: true
+        type: string
+    secrets: 
+      SCMusername:
+        required: true
+      SCMpassword:
+        required: true
+
+jobs:
+  SCM-RemoteCMD:
+    runs-on: ['SCM-Generic-1']
+
+    steps:
+      # # Cache Apache Ant
+      # - name: Cache Apache Ant
+      #   uses: actions/cache@v3
+      #   with:
+      #     path: ./apache-ant
+      #     key: ${{ runner.os }}-ant-1.10.15
+      #     restore-keys: |
+      #       ${{ runner.os }}-ant-
+
+      # Set up Apache Ant
+      - name: Set up Apache Ant
+        shell: pwsh
+        run: |
+          $ANT_VERSION = "1.10.1"
+          $ANT_DIR = "C:\Program Files (x86)\Ant\apache-ant-1.10.1\"
+          # if (-Not (Test-Path -Path $ANT_DIR)) {
+          #   Invoke-WebRequest -Uri "https://downloads.apache.org/ant/binaries/apache-ant-${ANT_VERSION}-bin.zip" -OutFile "ant.zip"
+          #   Expand-Archive -Path "ant.zip" -DestinationPath "."
+          #   Rename-Item -Path "apache-ant-${ANT_VERSION}" -NewName "apache-ant"
+          # }
+
+      # # Cache JSch Library
+      # - name: Cache JSch Library
+      #   uses: actions/cache@v3
+      #   with:
+      #     path: ./apache-ant/lib/jsch.jar
+      #     key: ${{ runner.os }}-jsch-0.1.55
+
+      # # Download JSch Library (if not cached)
+      # - name: Download JSch Library
+      #   if: steps.cache.outputs.cache-hit != 'true'
+      #   shell: pwsh
+      #   run: |
+      #     $JSCH_JAR_URL = "https://repo1.maven.org/maven2/com/jcraft/jsch/0.1.55/jsch-0.1.55.jar"
+      #     Invoke-WebRequest -Uri $JSCH_JAR_URL -OutFile "./apache-ant/lib/jsch.jar"
+
+      # Run Ant SSH Command
+      - name: Run Ant SSH Command
+        shell: pwsh
+        run: |
+          # Define paths
+          $ANT_DIR = "C:\Program Files (x86)\Ant\apache-ant-1.10.1"
+          $BUILD_FILE = Join-Path -Path $env:GITHUB_WORKSPACE -ChildPath "scripts/SCM_RemoteCmd.xml"
+      
+          # Ensure Ant and build file exist
+          if (-Not (Test-Path -Path (Join-Path -Path $ANT_DIR -ChildPath "bin\ant"))) {
+            Write-Error "Ant not found. Ensure it is correctly installed."
+            exit 1
+          }
+      
+          if (-Not (Test-Path -Path $BUILD_FILE)) {
+            Write-Error "Build file $BUILD_FILE not found."
+            exit 1
+          }
+          # Run Ant with provided inputs
+          & "$ANT_DIR\bin\ant" -file $BUILD_FILE SSHEXEC `
+            -DSCMserver=${{ inputs.SCMserver }} `
+            -DSCMusername=${{ secrets.SCMusername }} `
+            -DSCMpassword=${{ secrets.SCMpassword }} `
+            -DSCMcommand="${{ inputs.SCMcommand }}" `

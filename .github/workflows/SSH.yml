@@ -1,0 +1,17 @@
+name: remote ssh command
+on: 
+ workflow_dispatch:
+jobs:
+
+  build:
+    name: Build
+    runs-on: [ 'self-hosted', 'Linux', 'X64', 'Bermuda-Linux']
+    steps:
+    - name: executing remote ssh commands using password
+      uses: appleboy/ssh-action@v1.0.3
+      with:
+        host: c851oatscmdfd
+        username: ${{ secrets.SCM_USERNAME }}
+        password: ${{ secrets.SCM_PASSWORD }}
+        port: 22
+        script: whoami

@@ -1,0 +1,158 @@
+name: JWB-Patching
+
+on:
+  workflow_dispatch:
+    inputs:
+      Environment:
+        description: 'Site Environment'
+        required: true
+        type: choice
+        options:
+          - QA
+          
+      Operation:
+        description: 'Operation'
+        required: true
+        type: choice
+        options:
+          - stop
+          - start
+      dryrun:
+        description: 'Dry Run'
+        required: false
+        default: 'false'
+
+jobs:
+  JWB-Patching:
+    strategy:
+      matrix:
+        application: [SmartProxy, RPXWrapper]
+ # ExplicitTool, MassReprocessing, MetadataRetroService, JudicialAggregator, PrintProductManager]
+    runs-on: self-hosted
+    environment: ${{ inputs.environment }} 
+    env:
+     ENV_CONFIG_FILE: ".github/env-variables.txt"
+     DEV_DE: "c851oatscmdfd"
+     TEST_DE: "c887miescmdft"
+     PREPROD_DE: "c731ivkscmdfq"
+     PROD_DE: "c141srascmdfp"
+
+     
+    steps:
+
+      - name: Set up deployment content
+        id: set-deploy-content
+        shell: pwsh
+        run: |
+          $DEPLOY_ENV = ""
+          $DE_SERVER = ""
+          $Env = ""
+          $BiasService = ""
+          switch ("${{ inputs.environment }}") {
+            "Dev" { 
+                     $DE_SERVER = $env:DEV_DE
+                     $Env = "Dev"
+                     $DEPLOY_ENV = "Dev"
+                     $BiasService = "trams-eag.preprod.int.thomsonreuters.com"
+            }
+             "QA" { 
+                     $DE_SERVER = $env:PREPROD_DE
+                     $Env = "QA"
+                     $DEPLOY_ENV = "QA"
+                     $BiasService = "trams-eag.preprod.int.thomsonreuters.com"
+            }
+             "UAT" { 
+                     $DE_SERVER = $env:PREPROD_DE
+                     $Env = "UAT"
+                     $DEPLOY_ENV = "UAT"
+                     $BiasService = "trams-eag.preprod.int.thomsonreuters.com"
+            }
+             "Prod" { 
+                     $DE_SERVER = $env:PROD_DE
+                     $Env = "Prod"
+                     $DEPLOY_ENV = "Prod"
+                     $BiasService = "trams-eag.cisprod.int.thomsonreuters.com"
+            }
+          
+            default { Write-Error "Unknown environment: ${{ inputs.environment }}"; exit 1 }
+          }
+          Write-Output "Environment to deploy: $DEPLOY_ENV"
+          Write-Output "DE Server: $DE_SERVER"
+          Write-Output "Environment: $Env"
+          Write-Output "BiasService: $BiasService"
+          echo "BiasService=$BiasService" >> $env:GITHUB_ENV
+          echo "DE_SERVER=$DE_SERVER" >> $env:GITHUB_ENV
+          echo "DEPLOY_ENV=$DEPLOY_ENV" >> $env:GITHUB_ENV
+
+      
+
+      - name: Run application function
+        uses: tr/ContentSCM_Actions/.github/actions/SCM-RemoteCMDWin@main
+        with:
+          SCMserver: "${{ env.DE_SERVER }}"
+          SCMusername: ${{ secrets.SCM_USERNAME }}
+          SCMpassword: ${{ secrets.SCM_PASSWORD }}
+          SCMcommand: /appserver/deployment/${{ github.event.inputs.Operation }}Server Application=${{ matrix.application }} Env="${{ env.DEPLOY_ENV }}" ApplicationNamespace=ECT-Judicial-"${{ env.DEPLOY_ENV }}" script=./conf/workflow.JWB.xml forceDeployment=true release=${{ github.event.inputs.build_ver }} username=${{ secrets.NODEAGENT_USERNAME }} password=${{ secrets.NODEAGENT_PASSWORD }} dryRun=${{ github.event.inputs.dryrun }} BiasService="${{ env.BiasService }}"
+ 
+      - name: Clean workspace again
+        run: |
+          Remove-Item -Path ${{ github.workspace }}\* -Recurse
+          echo "Workspace cleaned after operations"
+          dir
+
+
+  # JWB-Patching1:
+  #   strategy:
+  #     matrix:
+  #       application: [JudicialMMR, TransformationService, SctTransformationService, JudicialSummary, JudicialClassificationUI, ExpertWitnessTool]
+  #   runs-on: self-hosted
+  #   steps:
+  #     - name: Run application function
+  #       uses: tr/ContentSCM_Actions/.github/actions/SCM-RemoteCMDWin@main
+  #       with:
+  #         SCMserver: "${{ env.DE_SERVER }}"
+  #         SCMusername: ${{ secrets.SCM_USERNAME }}
+  #         SCMpassword: ${{ secrets.SCM_PASSWORD }}
+  #         SCMcommand: /appserver/deployment/${{ github.event.inputs.Operation }}Server Application=${{ matrix.application }} Env=${{ github.event.inputs.Environment }} ApplicationNamespace=ECT-Judicial-${{ github.event.inputs.Environment }} script=./conf/workflow.JWB.xml forceDeployment=true release=${{ github.event.inputs.build_ver }} username=${{ secrets.NODEAGENT_USERNAME }} password=${{ secrets.NODEAGENT_PASSWORD }} dryRun=${{ github.event.inputs.dryrun }} BiasService="${{ env.BiasService }}"
+
+  # JWB-Patching2:
+  #   strategy:
+  #     matrix:
+  #       application: [CheetahManager, JudicialWorkflowUI, BPMSClientService, JudicialProcessService, JudicialWorkflowRules, WorkflowArchive]
+  #   runs-on: self-hosted
+  #   steps:
+  #     - name: Run application function
+  #       uses: tr/ContentSCM_Actions/.github/actions/SCM-RemoteCMDWin@main
+  #       with:
+  #         SCMserver: "${{ env.DE_SERVER }}"
+  #         SCMusername: ${{ secrets.SCM_USERNAME }}
+  #         SCMpassword: ${{ secrets.SCM_PASSWORD }}
+  #         SCMcommand: cd /appserver/deployment/ && ${{ github.event.inputs.Operation }}Server Application=${{ matrix.application }} Env=${{ github.event.inputs.Environment }} ApplicationNamespace=ECT-Judicial-"${{ env.DEPLOY_ENV }}" script=./conf/workflow.JWB.xml forceDeployment=true release=${{ github.event.inputs.build_ver }} username=${{ secrets.NODEAGENT_USERNAME }} password=${{ secrets.NODEAGENT_PASSWORD }} dryRun=${{ github.event.inputs.dryrun }} BiasService=trams-eag.preprod.int.thomsonreuters.com
+
+  # JWB-Patching3:
+  #   strategy:
+  #     matrix:
+  #       application: [CheetahGenerator, ErrorReporting, PrintProductGenerator, PDFNormalizerService, AlertServiceEngine, CHC, HMT]
+  #   runs-on: self-hosted
+  #   steps:
+  #     - name: Run application function
+  #       uses: tr/ContentSCM_Actions/.github/actions/SCM-RemoteCMDWin@main
+  #       with:
+  #         SCMserver: "${{ env.DE_SERVER }}"
+  #         SCMusername: ${{ secrets.SCM_USERNAME }}
+  #         SCMpassword: ${{ secrets.SCM_PASSWORD }}
+  #         SCMcommand: cd /appserver/deployment/ && ${{ github.event.inputs.Operation }}Server Application=${{ matrix.application }} Env=${{ github.event.inputs.Environment }} ApplicationNamespace=ECT-Judicial-"${{ env.DEPLOY_ENV }}" script=./conf/workflow.JWB.xml forceDeployment=true release=${{ github.event.inputs.build_ver }} username=${{ secrets.NODEAGENT_USERNAME }} password=${{ secrets.NODEAGENT_PASSWORD }} dryRun=${{ github.event.inputs.dryrun }} BiasService=trams-eag.preprod.int.thomsonreuters.com
+
+  # JWB-Patching4:
+  #   strategy:
+  #     matrix:
+  #       application: [JudicialWorkbench, JudicialSearch, JMAIntegrityAgent, CheetahTaxFilter, JudicialBPMSArchive, AdhocRetroLoad]
+  #   runs-on: self-hosted
+  #   steps:
+  #     - name: Run application function
+  #       uses: tr/ContentSCM_Actions/.github/actions/SCM-RemoteCMDWin@main
+  #       with:
+  #         SCMserver: "${{ env.DE_SERVER }}"
+  #         SCMusername: ${{ secrets.SCM_USERNAME }}
+  #         SCMpassword: ${{ secrets.SCM_PASSWORD }}
+  #         SCMcommand: cd /appserver/deployment/ && ${{ github.event.inputs.Operation }}Server Application=${{ matrix.application }} Env=${{ github.event.inputs.Environment }} ApplicationNamespace=ECT-Judicial-"${{ env.DEPLOY_ENV }}" script=./conf/workflow.JWB.xml forceDeployment=true release=${{ github.event.inputs.build_ver }} username=${{ secrets.NODEAGENT_USERNAME }} password=${{ secrets.NODEAGENT_PASSWORD }} dryRun=${{ github.event.inputs.dryrun }} BiasService=trams-eag.preprod.int.thomsonreuters.com

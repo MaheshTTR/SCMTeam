@@ -1,0 +1,104 @@
+name: PatchScheduleCalculation
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '0 11 * * *' #UTC time
+
+jobs:
+  calculate-diff:
+    runs-on: [ 'self-hosted', 'Linux', 'X64', 'Bermuda-Linux' ]
+    strategy:
+      matrix:
+           environment: ['Dev', 'Test']
+          
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v3
+          
+      - name: Run Custom Action from WestTech_SCM
+        id: calculate-diffs
+        uses: tr/ContentSCM_Actions/.github/actions/GetPatchCountdown@main
+        with:
+          patchProfile: M-27-07-40
+
+      - name: Display Calculated Time Differences
+        shell: bash
+        run: |
+          echo "$(date +"%H:%M:%S") DaysUntilPatch: ${{ env.dayDiff }}"
+          echo "$(date +"%H:%M:%S") HoursUntilPatch: ${{ env.hourDiff }}"
+          echo "$(date +"%H:%M:%S") MinutesUntilPatch: ${{ env.minuteDiff }}"
+          echo "$(date +"%H:%M:%S") SecondsUntilPatch: ${{ env.secondDiff }}"
+          echo "$(date +"%H:%M:%S") MillisUntilPatch: ${{ env.milliDiff }}"
+
+      # - name: schedule Stop app workflow
+      #   if: ${{ env.dayDiff < 1 }}
+      #   uses: tr/ContentSCM_Actions/.github/actions/Schedule-GitHub-Workflow@GHMigration
+      #   with:
+      #         scm_runtime: '03:25'  # Time format CST= UTC-6 is correct
+      #         scm_day_offset: '0'
+      #         scm_workflow_file: "FormatterService-Prod-StopStart.yml"
+      #         scm_repository: "Judicial_FormatterService"
+      #         scm_token: ${{ secrets.SCM_GITTOKEN }}
+      #         scm_ref: "java-cicd-workflows_1718954627"
+      #         scm_parameters: |
+      #           environment=${{ matrix.environment }}
+      #           operation=stop
+                
+      # - name: schedule Start app workflow
+      #   if: ${{ env.dayDiff < 1 }}
+      #   uses: tr/ContentSCM_Actions/.github/actions/Schedule-GitHub-Workflow@main
+      #   with:
+      #         scm_runtime: '05:30'  # Time format UTC is correct
+      #         scm_day_offset: '0'
+      #         scm_workflow_file: "FormatterService-Dev-Test-StopStart.yaml"
+      #         scm_repository: "Judicial_FormatterService"
+      #         scm_token: ${{ secrets.SCM_GITTOKEN }}
+      #         scm_ref: "java-cicd-workflows_1718954627"
+      #         scm_parameters: |
+      #           environment=${{ matrix.environment }}
+      #           operation=start
+
+
+      - name: Calculate exact stop/start time
+        id: calculate-runtime
+        shell: bash
+        run: |
+          # Convert remaining time to seconds
+          total_seconds=$(( ${{ env.dayDiff }} * 86400 + ${{ env.hourDiff }} * 3600 + ${{ env.minuteDiff }} * 60 + ${{ env.secondDiff }} ))
+          echo "Total remaining seconds: $total_seconds"
+
+          # If less than 1 day, schedule the workflow
+          if [ $total_seconds -lt 86400 ]; then
+            echo "trigger_stop_app=true" >> $GITHUB_ENV
+          else
+            echo "trigger_stop_app=false" >> $GITHUB_ENV
+          fi
+
+      - name: Schedule Stop app workflow
+        if: ${{ env.trigger_stop_app == 'true' }}
+        uses: tr/ContentSCM_Actions/.github/actions/Schedule-GitHub-Workflow@main
+        with:
+          scm_runtime: '07:49'  # Time format CST= UTC-6 is correct
+          scm_day_offset: '0'
+          scm_workflow_file: "FormatterService-Dev-Test-StopStart.yaml"
+          scm_repository: "Judicial_FormatterService"
+          scm_token: ${{ secrets.SCM_GITTOKEN }}
+          scm_ref: "java-cicd-workflows_1718954627"
+          scm_parameters: |
+            environment=${{ matrix.environment }}
+            operation=stop
+
+      - name: Schedule Start app workflow
+        if: ${{ env.trigger_stop_app == 'true' }}
+        uses: tr/ContentSCM_Actions/.github/actions/Schedule-GitHub-Workflow@main
+        with:
+          scm_runtime: '07:55'  # Time format UTC is correct
+          scm_day_offset: '0'
+          scm_workflow_file: "FormatterService-Dev-Test-StopStart.yaml"
+          scm_repository: "Judicial_FormatterService"
+          scm_token: ${{ secrets.SCM_GITTOKEN }}
+          scm_ref: "java-cicd-workflows_1718954627"
+          scm_parameters: |
+            environment=${{ matrix.environment }}
+            operation=start

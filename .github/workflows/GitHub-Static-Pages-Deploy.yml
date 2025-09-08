@@ -1,0 +1,29 @@
+name: GitHub-Static-Pages-Deploy
+
+on:
+ push:
+  branches:
+   - feature
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+jobs:
+ deploy:
+  runs-on: ubuntu-latest
+  steps:
+    - name: checkout code
+      uses: actions/checkout@v4
+
+    - name: upload HTML/CSS/JS files
+      uses: actions/upload-pages-artifacts@v3
+      with:
+        path: ./
+
+    - name: Deploy to Github pages
+      id: deployment
+      uses: actions/deploy-pages@v4
+
+   

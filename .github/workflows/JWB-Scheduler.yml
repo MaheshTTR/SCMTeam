@@ -1,0 +1,22 @@
+name: Schedule-GitHub-Workflow
+
+on:
+  workflow_dispatch:  # This trigger allows manual execution from GitHub UI
+
+jobs:       
+  schedule:
+    runs-on: [self-hosted, Linux, X64, 'Bermuda-2']  # Corrected: Removed extra quotes around labels
+    steps:
+      - name: Schedule Workflow
+        uses: tr/ContentSCM_Actions/.github/actions/Schedule-GitHub-Workflow@GHMigration
+        with:
+          scm_runtime: '04:04'  # Time format is correct
+          scm_day_offset: '0'
+          scm_workflow_file: "Ask_Services-CI-Deploy.yml"
+          scm_repository: "tr/ask_services"
+          scm_token: ${{ secrets.SCM_GITTOKEN }}
+          scm_ref: "GHA_Migration"
+          scm_parameters: |
+            environment=CI
+            build_ver=24.11.4
+            ask_version=1.0.23

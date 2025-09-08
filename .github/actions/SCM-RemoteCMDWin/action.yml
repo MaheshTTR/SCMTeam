@@ -1,0 +1,58 @@
+name: 'SCMRemoteCommandWin'
+description: 'Run an Ant SSH command on a remote server using SCM_RemoteCMD.xml'
+author: 'Your Name'
+
+inputs:
+  SCMserver:
+    description: 'The SCM server to execute the command on'
+    required: true
+  SCMusername:
+    description: 'The SCM username for authentication'
+    required: true
+  SCMpassword:
+    description: 'The SCM password for authentication'
+    required: true
+  SCMcommand:
+    description: 'The SSH command to execute on the remote server'
+    required: true
+
+runs:
+  using: "composite"
+  steps:
+
+    - name: Set up Apache Ant
+      shell: pwsh
+      run: |
+        $ANT_VERSION = "1.10.1"
+        $ANT_DIR = "C:\\Program Files (x86)\\Ant\\apache-ant-1.10.1"
+        # Ensure Ant directory exists
+        if (-Not (Test-Path -Path $ANT_DIR)) {
+          Write-Error "Apache Ant not found at $ANT_DIR. Please install it."
+          exit 1
+        }
+    
+    - name: Run Ant SSH Command
+      shell: pwsh
+      run: |
+        # Define paths
+        $ANT_DIR = "C:\\Program Files (x86)\\Ant\\apache-ant-1.10.1"
+        $BUILD_FILE = Join-Path -Path $env:GITHUB_ACTION_PATH -ChildPath "scripts/SCM_RemoteCmd.xml"
+    
+        # Ensure Ant and build file exist
+        if (-Not (Test-Path -Path (Join-Path -Path $ANT_DIR -ChildPath "bin\\ant"))) {
+          Write-Error "Ant not found. Ensure it is correctly installed."
+          exit 1
+        }
+    
+        if (-Not (Test-Path -Path $BUILD_FILE)) {
+          Write-Error "Build file $BUILD_FILE not found."
+          exit 1
+        }
+
+        # Run Ant with provided inputs
+        & "$ANT_DIR\bin\ant.bat" -f "$BUILD_FILE" SSHEXEC `
+          -DSCMserver=${{ inputs.SCMserver }} `
+          -DSCMusername=${{ inputs.SCMusername }} `
+          -DSCMpassword=${{ inputs.SCMpassword }} `
+          -DSCMcommand="${{ inputs.SCMcommand }}" `
+          -debug

@@ -1,0 +1,14 @@
+name: CallWorkflownewold
+
+on:
+  workflow_dispatch:
+
+jobs:
+  Call-Reusable-Workflow:
+    uses: tr/ask_services/.github/workflows/Ask_Services-CI-Deploy.yml@GHA_Migration
+    secrets:
+      SCM_GITTOKEN: ${{ secrets.SCM_GITTOKEN }}
+      SCM_USERNAME: ${{ secrets.SCM_USERNAME }}
+      SCM_PASSWORD: ${{ secrets.SCM_PASSWORD }}
+   #test commit
+    

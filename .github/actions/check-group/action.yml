@@ -1,0 +1,50 @@
+name: "Check User Team Membership"
+description: "Check if the triggering user belongs to one of the specified teams"
+inputs:
+  teams:
+    description: "Comma-separated list of teams to check (e.g., DEV, QA, ASR)"
+    required: true
+  username:
+    description: "The username of the person who triggered the workflow"
+    required: true
+  org:
+    description: "The GitHub organization name"
+    required: true
+  token:
+    description: "GitHub token for authentication"
+    required: true
+
+runs:
+  using: "composite"
+  steps:
+    - name: Check if the user belongs to any of the specified teams
+      shell: bash
+      run: |
+        TEAMS=${{ inputs.teams }}
+        USERNAME=${{ inputs.username }}
+        ORG=${{ inputs.org }}
+        TOKEN=${{ inputs.token }}
+
+        # Split the comma-separated teams into an array
+        IFS=',' read -ra TEAM_ARRAY <<< "$TEAMS"
+        USER_IN_TEAM=false
+
+        # Check if the user is in any of the teams (OR operation)
+        for TEAM in "${TEAM_ARRAY[@]}"; do
+          TEAM=$(echo "$TEAM" | xargs)  # Trim whitespace
+          RESPONSE=$(curl -s -o /dev/null -w "%{http_code}" \
+            -H "Authorization: token $TOKEN" \
+            "https://api.github.com/orgs/$ORG/teams/$TEAM/memberships/$USERNAME")
+
+          if [[ "$RESPONSE" == "200" ]]; then
+            echo "User $USERNAME is a member of the $TEAM team."
+            USER_IN_TEAM=true
+            break  # Exit loop if user is found in one of the teams
+          fi
+        done
+
+        # If the user wasn't found in any team, exit with failure
+        if [ "$USER_IN_TEAM" = false ]; then
+          echo "User $USERNAME is not a member of any of the specified teams."
+          exit 1
+        fi

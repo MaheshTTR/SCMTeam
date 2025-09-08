@@ -1,0 +1,43 @@
+name: Schedule Workflow Dispatch
+on:
+ 
+  workflow_dispatch:
+    inputs:
+      date:
+        description: 'Date to run the workflow'
+        required: true
+        type: string
+        default: 'in 1 hour'
+      environment:
+        type: choice
+        description: "Select the Env"
+        options:
+        - Dev
+        - Test
+      operation:
+        type: choice
+        description: "Select the Operation"
+        options:
+        - stop
+        - start
+concurrency:
+  group: schedule${{ github.event.inputs.date }}
+  cancel-in-progress: true
+
+jobs:
+  schedule:
+    name: 📅 Schedule
+    runs-on: ubuntu-latest
+    steps:
+      - uses: austenstone/schedule@v1.3
+        with:
+          github-token:  ${{ secrets.SCM_GITTOKEN }}
+          repo: tr/Judicial_FormatterService
+          date: ${{ github.event.inputs.date }}
+          workflow: 'FormatterService-Dev-Test-StopStart.yaml'
+          timezone: 'IST' # US/Central, US/Pacific
+          ref: "java-cicd-workflows_1718954627"
+          environment: ${{ github.event.inputs.environment }}
+          Operation: ${{ github.event.inputs.Operation }}
+        #  inputs: ${{ github.event.inputs.operation }}
+          # wait-ms: 45000

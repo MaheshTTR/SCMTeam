@@ -1,0 +1,89 @@
+name: 'Java Build and Release'
+description: 'Checkout, set up Java, set up Gradle, and create a release with artifacts.'
+inputs:
+  branch_name:
+    description: 'The branch to checkout.'
+    required: true
+  scm_git_token:
+    description: 'The GitHub token for creating releases.'
+    required: true
+  build_number:
+    description: 'The build number to use for tagging the release.'
+    required: true
+  artifact_path:
+    description: 'The path to the artifact file to upload.'
+    required: true
+  java_version:
+    description: 'The version of Java to set up.'
+    required: false
+  gradle_version:
+    description: 'The version of Gradle to set up.'
+    required: false
+  file_name:
+    description: 'The artifact file to download'
+    required: false
+  repository_name:
+     description: 'The Repository name to download artifacts'
+     required: false
+  optional_step_run_checkout:
+    description: 'A flag to run the checkout step.'
+    required: false
+  optional_step_run_Java:
+    description: 'A flag to run the Java setup step.'
+    required: false
+  optional_step_run_Gradle:
+    description: 'A flag to run the Gradle setup step.'
+    required: false
+  optional_step_run_UploadArtifacts:
+    description: 'A flag to run the upload artifacts step.'
+    required: false
+  optional_step_run_DownloadArtifacts:
+    description: 'A flag to run the upload artifacts step.'
+    required: false
+    
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Checkout code
+      if: inputs.optional_step_run_checkout != ''
+      uses: actions/checkout@v4
+      with:
+        ref: ${{ inputs.branch_name }}
+
+    - name: Set up Amazon Corretto
+      if: inputs.optional_step_run_Java != ''
+      uses: actions/setup-java@v4
+      with:
+        distribution: 'corretto'
+        java-version: ${{ inputs.java_version }}
+
+    - name: Set up Gradle
+      if: inputs.optional_step_run_Gradle != ''
+      uses: gradle/gradle-build-action@v2
+      with:
+        gradle-version: ${{ inputs.gradle_version }}
+
+    - name: Create Release and Upload Artifacts
+      if: inputs.optional_step_run_UploadArtifacts != ''
+      uses: ncipollo/release-action@v1
+      with:
+        token: ${{ inputs.scm_git_token }}
+        body: 'Release of version ${{ inputs.build_number }}'
+        draft: false
+        generateReleaseNotes: true
+        name: ${{ inputs.build_number }}
+        prerelease: false
+        tag: ${{ inputs.build_number }}
+        artifacts: ${{ inputs.artifact_path }}
+        allowUpdates: true
+        replacesArtifacts: true
+
+   - name: Download Required Release
+     if: inputs.optional_step_run_DownloadArtifacts != ''
+     uses: robinraju/release-downloader@v1.9
+     with:
+        repository: ${{ inputs.repository_name }}
+        tag: ${{  inputs.build_number  }}
+        fileName: ${{ inputs.file_name }}
+        token: ${{ inputs.scm_git_token }}

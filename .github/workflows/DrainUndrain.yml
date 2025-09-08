@@ -1,0 +1,31 @@
+name: Use VIP Manager Action
+
+on:
+  workflow_dispatch:
+   inputs:
+    Operation:
+     description: 'Select Operation'
+     type: choice
+     options:
+      - drain
+      - undrain
+
+jobs:
+  manage-vip:
+    runs-on: Bermuda-2
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+        # This step checks out your repository content, necessary for accessing any local actions
+
+      - name: Run VIP Manager
+        uses: tr/ContentSCM_Actions/.github/actions/DrainUndrain@Dev
+        with:
+          action: ${{ inputs.Operation  }}
+          server: '10.145.26.112'
+          pool: 'BPMSCLIENTSERVICE-DEV-8519'
+          user: scmblr
+          pwd: scmblr1
+          port: '8519'
+          bigIP: 'bigipcis-msp.int.thomsonreuters.com'
+          baseURL: 'http://trams-eag.preprod.int.thomsonreuters.com:3777'

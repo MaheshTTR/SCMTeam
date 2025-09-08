@@ -1,0 +1,79 @@
+name: CaseMaintenanceUI-Deploy
+
+on: 
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Input Version (Major.Minor)'
+        required: true
+      
+
+jobs:
+
+ 
+  validate-membership:
+    runs-on: [ 'self-hosted', 'Linux', 'X64', 'Bermuda-Linux' ]
+    steps:  
+       - uses: actions/checkout@v3  # Keep v3 for consistency
+       - name: Run Custom Action from WestTech_SCM
+         id: Access
+         uses: tr/WestTech_SCM/.github/actions/check-group@main  # Reference the action directly
+         with:
+          teams: "Dev,QA"  # Change to "QA" if needed
+          username: ${{ github.actor }}
+          org: "tr"  # Replace with your GitHub organization name
+          token: ${{ secrets.SCM_GITTOKEN }}
+        # Adding token for private repo access
+      
+          
+
+  run-workflow-if-member:
+    runs-on: ubuntu-latest
+    needs: validate-membership
+    if: success()  # Only run if the validate-membership job is successful
+    steps:
+      - name: Run only if the user belongs to DEV or QA team
+        run: echo "User belongs to the required team, workflow continues..."
+
+  deploy:
+    runs-on: [ 'self-hosted', 'Windows', 'X64', 'SCM-Generic-1']
+    needs: run-workflow-if-member  # Ensure deployment happens only if the membership validation and previous job succeeded
+    env:
+      ENV_CONFIG_FILE: ".github/env-variables.txt"
+    environment:
+      name: ${{ github.event.inputs.environment }}
+
+    steps:
+      - name: Clean workspace
+        run: |
+          Remove-Item -Path ${{ github.workspace }}\* -Recurse
+          echo "Removed the content of workspace"
+          dir
+
+      - name: Checkout repository
+        uses: actions/checkout@v3  # Keep consistent with previous jobs
+
+      - name: Set environment variables defined in the ENV_CONFIG_FILE
+        shell: bash
+        run: |
+          set -e  # Stop on error
+          while IFS= read -r line || [[ -n "$line" ]]; do
+            if [[ ! "$line" =~ ^# && "$line" =~ = ]]; then
+              echo "$line" >> $GITHUB_ENV
+            fi
+          done < ${{ env.ENV_CONFIG_FILE }}
+
+      - name: Verify PowerShell Core installation
+        run: Get-Command pwsh
+        shell: powershell
+
+      - name: List env vars
+        shell: bash
+        run: |
+          printenv
+
+      - name: Clean workspace again
+        run: |
+          Remove-Item -Path ${{ github.workspace }}\* -Recurse
+          echo "Workspace cleaned after operations"
+          dir
